@@ -1,0 +1,144 @@
+/**
+ * Work Item Manager Module
+ * Handles CRUD operations for Azure DevOps work items (issues and tasks)
+ */
+
+import axios, { AxiosInstance } from 'axios';
+import { config } from '../config';
+import { WorkItem } from '../types';
+
+/**
+ * Azure DevOps API client for work item operations
+ */
+const azureClient: AxiosInstance = axios.create({
+  baseURL: `${config.azure.orgUrl}/${config.azure.project}/_apis`,
+  auth: {
+    username: '',
+    password: config.azure.pat,
+  },
+  headers: {
+    'Content-Type': 'application/json-patch+json',
+  },
+});
+
+/**
+ * Creates a new work item
+ * @param workItemType - Type of work item (e.g., 'Task', 'Bug', 'User Story')
+ * @param title - Work item title
+ * @param description - Work item description (optional)
+ * @param assignedTo - User to assign the work item to (optional)
+ * @returns Created WorkItem object
+ */
+export async function createWorkItem(
+  workItemType: string,
+  title: string,
+  description?: string,
+  assignedTo?: string
+): Promise<WorkItem> {
+  try {
+    const operations = [
+      {
+        op: 'add',
+        path: '/fields/System.Title',
+        value: title,
+      },
+    ];
+
+    if (description) {
+      operations.push({
+        op: 'add',
+        path: '/fields/System.Description',
+        value: description,
+      });
+    }
+
+    if (assignedTo) {
+      operations.push({
+        op: 'add',
+        path: '/fields/System.AssignedTo',
+        value: assignedTo,
+      });
+    }
+
+    const response = await azureClient.post(`/wit/workitems/$${workItemType}`, operations, {
+      params: { 'api-version': '7.0' },
+    });
+
+    return response.data;
+  } catch (error) {
+    console.error('Error creating work item:', error);
+    throw new Error('Failed to create work item');
+  }
+}
+
+/**
+ * Updates an existing work item
+ * @param workItemId - ID of the work item to update
+ * @param updates - Object containing fields to update
+ * @returns Updated WorkItem object
+ */
+export async function updateWorkItem(
+  workItemId: number,
+  updates: Record<string, any>
+): Promise<WorkItem> {
+  try {
+    const operations = Object.entries(updates).map(([field, value]) => ({
+      op: 'replace',
+      path: `/fields/${field}`,
+      value,
+    }));
+
+    const response = await azureClient.patch(`/wit/workitems/${workItemId}`, operations, {
+      params: { 'api-version': '7.0' },
+    });
+
+    return response.data;
+  } catch (error) {
+    console.error('Error updating work item:', error);
+    throw new Error('Failed to update work item');
+  }
+}
+
+/**
+ * Deletes a work item
+ * @param workItemId - ID of the work item to delete
+ * @returns Success status
+ */
+export async function deleteWorkItem(workItemId: number): Promise<boolean> {
+  try {
+    await azureClient.delete(`/wit/workitems/${workItemId}`, {
+      params: { 'api-version': '7.0' },
+    });
+    return true;
+  } catch (error) {
+    console.error('Error deleting work item:', error);
+    throw new Error('Failed to delete work item');
+  }
+}
+
+/**
+ * Gets a single work item by ID
+ * @param workItemId - ID of the work item
+ * @returns WorkItem object
+ */
+export async function getWorkItem(workItemId: number): Promise<WorkItem> {
+  try {
+    const response = await azureClient.get(`/wit/workitems/${workItemId}`, {
+      params: { 'api-version': '7.0' },
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching work item:', error);
+    throw new Error('Failed to fetch work item');
+  }
+}
+
+/**
+ * Updates work item state (e.g., 'New', 'Active', 'Done')
+ * @param workItemId - ID of the work item
+ * @param state - New state value
+ * @returns Updated WorkItem object
+ */
+export async function updateWorkItemState(workItemId: number, state: string): Promise<WorkItem> {
+  return updateWorkItem(workItemId, { 'System.State': state });
+}
