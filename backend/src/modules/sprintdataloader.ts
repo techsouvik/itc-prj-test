@@ -44,20 +44,27 @@ export async function getSprints(): Promise<Sprint[]> {
  */
 export async function getSprintWorkItems(sprintId: string): Promise<WorkItem[]> {
   try {
+    console.log(`Fetching work items for sprint: ${sprintId}`);
+    
     // Get work item IDs for the sprint
     const response = await azureClient.get(`/work/teamsettings/iterations/${sprintId}/workitems`, {
       params: { 'api-version': '7.0' },
     });
 
     const workItemRefs = response.data.workItemRelations || [];
+    console.log(`Found ${workItemRefs.length} work item references for sprint ${sprintId}`);
+    
     const workItemIds = workItemRefs
       .filter((ref: any) => ref.target)
       .map((ref: any) => ref.target.id);
 
     if (workItemIds.length === 0) {
+      console.log(`No work items found for sprint ${sprintId}`);
       return [];
     }
 
+    console.log(`Fetching details for ${workItemIds.length} work items`);
+    
     // Fetch detailed work item data
     const detailsResponse = await azureClient.get('/wit/workitems', {
       params: {
@@ -66,10 +73,21 @@ export async function getSprintWorkItems(sprintId: string): Promise<WorkItem[]> 
       },
     });
 
-    return detailsResponse.data.value;
-  } catch (error) {
-    console.error('Error fetching sprint work items:', error);
-    throw new Error('Failed to fetch work items for sprint');
+    const workItems = detailsResponse.data.value || [];
+    console.log(`Retrieved ${workItems.length} work items for sprint ${sprintId}`);
+    
+    return workItems;
+  } catch (error: any) {
+    const errorDetails = {
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      data: error.response?.data,
+      message: error.message,
+      sprintId,
+    };
+    console.error('Error fetching sprint work items:', JSON.stringify(errorDetails, null, 2));
+    const errorMsg = error.response?.data?.message || error.response?.data?.value || error.message;
+    throw new Error(`Failed to fetch work items for sprint ${sprintId}: ${errorMsg}`);
   }
 }
 

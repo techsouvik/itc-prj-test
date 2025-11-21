@@ -6,6 +6,7 @@
 import * as sprintLoader from '../modules/sprintdataloader';
 import * as workItemManager from '../modules/workitemmanager';
 import * as aiIntegration from '../modules/integration';
+import * as boardManager from '../modules/boardmanager';
 import { MCPToolCallRequest, MCPToolCallResponse } from './types';
 
 /**
@@ -19,14 +20,31 @@ export async function executeToolCall(request: MCPToolCallRequest): Promise<MCPT
 
     switch (name) {
       case 'get_sprints':
-        result = await sprintLoader.getSprints();
+        const allSprints = await sprintLoader.getSprints();
+        // Return concise sprint info
+        result = allSprints.map(s => ({
+          id: s.id,
+          name: s.name,
+          path: s.path,
+          timeFrame: s.attributes.timeFrame,
+          startDate: s.attributes.startDate,
+          finishDate: s.attributes.finishDate
+        }));
         break;
 
       case 'get_sprint_work_items':
         if (!args.sprintId) {
           throw new Error('sprintId is required');
         }
-        result = await sprintLoader.getSprintWorkItems(args.sprintId);
+        const sprintWorkItems = await sprintLoader.getSprintWorkItems(args.sprintId);
+        // Return concise work item summaries
+        result = sprintWorkItems.map(wi => ({
+          id: wi.id,
+          type: wi.fields['System.WorkItemType'],
+          title: wi.fields['System.Title'],
+          state: wi.fields['System.State'],
+          assignedTo: wi.fields['System.AssignedTo']?.displayName || 'Unassigned'
+        }));
         break;
 
       case 'get_current_sprint_metrics':
@@ -104,6 +122,42 @@ export async function executeToolCall(request: MCPToolCallRequest): Promise<MCPT
         });
         break;
 
+      case 'get_all_tasks':
+        const allTasks = await workItemManager.getAllTasks();
+        // Return concise task info
+        result = allTasks.map(task => ({
+          id: task.id,
+          title: task.fields['System.Title'],
+          state: task.fields['System.State'],
+          assignedTo: task.fields['System.AssignedTo']?.displayName || 'Unassigned'
+        }));
+        break;
+
+      case 'get_boards':
+        const boards = await boardManager.getBoards();
+        // Return concise board info
+        result = boards.map(b => ({
+          id: b.id,
+          name: b.name,
+          url: b.url
+        }));
+        break;
+
+      case 'get_board_columns':
+        if (!args.boardId) {
+          throw new Error('boardId is required');
+        }
+        const columns = await boardManager.getBoardColumns(args.boardId);
+        // Return essential column info
+        result = columns.map(c => ({
+          id: c.id,
+          name: c.name,
+          itemLimit: c.itemLimit,
+          columnType: c.columnType,
+          stateMappings: c.stateMappings
+        }));
+        break;
+
       default:
         throw new Error(`Unknown tool: ${name}`);
     }
@@ -117,11 +171,13 @@ export async function executeToolCall(request: MCPToolCallRequest): Promise<MCPT
       ],
     };
   } catch (error: any) {
+    // Provide detailed error information for debugging
+    const errorMessage = error.response?.data?.message || error.message || 'Unknown error';
     return {
       content: [
         {
           type: 'text',
-          text: `Error: ${error.message}`,
+          text: `Error: ${errorMessage}`,
         },
       ],
       isError: true,

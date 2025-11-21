@@ -6,7 +6,7 @@
         "/Users/souvikojha/Desktop/itc-prj-test/backend/dist/mcp/server.js"
       ],
       "env": {
-        "AZURE_ORG_URL": "https://dev.azure.com/",
+        "AZURE_ORG_URL": "https://dev.azure.com/RISHCHITH20241CSE0916",
         "AZURE_PROJECT": "TeamsChatbotProject",
         "AZURE_PAT": "",
         "NODE_ENV": "production"

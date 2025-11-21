@@ -60,14 +60,25 @@ export async function createWorkItem(
       });
     }
 
-    const response = await azureClient.post(`/wit/workitems/$${workItemType}`, operations, {
+    // URL-encode the work item type to handle types with spaces (e.g., "User Story")
+    const encodedType = encodeURIComponent(workItemType);
+    const response = await azureClient.post(`/wit/workitems/$${encodedType}`, operations, {
       params: { 'api-version': '7.0' },
     });
 
     return response.data;
-  } catch (error) {
-    console.error('Error creating work item:', error);
-    throw new Error('Failed to create work item');
+  } catch (error: any) {
+    const errorDetails = {
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      data: error.response?.data,
+      message: error.message,
+      workItemType,
+      title
+    };
+    console.error('Error creating work item:', JSON.stringify(errorDetails, null, 2));
+    const errorMsg = error.response?.data?.message || error.response?.data?.value || error.message;
+    throw new Error(`Failed to create ${workItemType}: ${errorMsg}`);
   }
 }
 
@@ -93,9 +104,18 @@ export async function updateWorkItem(
     });
 
     return response.data;
-  } catch (error) {
-    console.error('Error updating work item:', error);
-    throw new Error('Failed to update work item');
+  } catch (error: any) {
+    const errorDetails = {
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      data: error.response?.data,
+      message: error.message,
+      workItemId,
+      updates
+    };
+    console.error('Error updating work item:', JSON.stringify(errorDetails, null, 2));
+    const errorMsg = error.response?.data?.message || error.response?.data?.value || error.message;
+    throw new Error(`Failed to update work item ${workItemId}: ${errorMsg}`);
   }
 }
 
@@ -110,9 +130,17 @@ export async function deleteWorkItem(workItemId: number): Promise<boolean> {
       params: { 'api-version': '7.0' },
     });
     return true;
-  } catch (error) {
-    console.error('Error deleting work item:', error);
-    throw new Error('Failed to delete work item');
+  } catch (error: any) {
+    const errorDetails = {
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      data: error.response?.data,
+      message: error.message,
+      workItemId
+    };
+    console.error('Error deleting work item:', JSON.stringify(errorDetails, null, 2));
+    const errorMsg = error.response?.data?.message || error.response?.data?.value || error.message;
+    throw new Error(`Failed to delete work item ${workItemId}: ${errorMsg}`);
   }
 }
 
@@ -127,9 +155,17 @@ export async function getWorkItem(workItemId: number): Promise<WorkItem> {
       params: { 'api-version': '7.0' },
     });
     return response.data;
-  } catch (error) {
-    console.error('Error fetching work item:', error);
-    throw new Error('Failed to fetch work item');
+  } catch (error: any) {
+    const errorDetails = {
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      data: error.response?.data,
+      message: error.message,
+      workItemId
+    };
+    console.error('Error fetching work item:', JSON.stringify(errorDetails, null, 2));
+    const errorMsg = error.response?.data?.message || error.response?.data?.value || error.message;
+    throw new Error(`Failed to fetch work item ${workItemId}: ${errorMsg}`);
   }
 }
 
@@ -141,4 +177,52 @@ export async function getWorkItem(workItemId: number): Promise<WorkItem> {
  */
 export async function updateWorkItemState(workItemId: number, state: string): Promise<WorkItem> {
   return updateWorkItem(workItemId, { 'System.State': state });
+}
+
+/**
+ * Gets all tasks from the project
+ * @returns Array of Task WorkItem objects
+ */
+export async function getAllTasks(): Promise<WorkItem[]> {
+  try {
+    // Use WIQL (Work Item Query Language) to query all tasks
+    const wiqlQuery = {
+      query: `SELECT [System.Id], [System.Title], [System.State], [System.AssignedTo] 
+              FROM WorkItems 
+              WHERE [System.TeamProject] = '${config.azure.project}' 
+              AND [System.WorkItemType] = 'Task' 
+              ORDER BY [System.CreatedDate] DESC`
+    };
+
+    const queryResponse = await azureClient.post('/wit/wiql', wiqlQuery, {
+      params: { 'api-version': '7.0' },
+    });
+
+    const workItemIds = queryResponse.data.workItems?.map((wi: any) => wi.id) || [];
+
+    if (workItemIds.length === 0) {
+      return [];
+    }
+
+    // Fetch detailed work item data (max 200 at a time)
+    const idsToFetch = workItemIds.slice(0, 200);
+    const detailsResponse = await azureClient.get('/wit/workitems', {
+      params: {
+        ids: idsToFetch.join(','),
+        'api-version': '7.0',
+      },
+    });
+
+    return detailsResponse.data.value || [];
+  } catch (error: any) {
+    const errorDetails = {
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      data: error.response?.data,
+      message: error.message,
+    };
+    console.error('Error fetching all tasks:', JSON.stringify(errorDetails, null, 2));
+    const errorMsg = error.response?.data?.message || error.response?.data?.value || error.message;
+    throw new Error(`Failed to fetch all tasks: ${errorMsg}`);
+  }
 }

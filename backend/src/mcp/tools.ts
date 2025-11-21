@@ -8,7 +8,7 @@ import { MCPTool } from './types';
 export const MCP_TOOLS: MCPTool[] = [
   {
     name: 'get_sprints',
-    description: 'Get all sprints/iterations from Azure DevOps project',
+    description: 'List all sprints with ID, name, path, timeFrame, and dates',
     inputSchema: {
       type: 'object',
       properties: {},
@@ -17,13 +17,13 @@ export const MCP_TOOLS: MCPTool[] = [
   },
   {
     name: 'get_sprint_work_items',
-    description: 'Get all work items for a specific sprint',
+    description: 'Get work items for a sprint (returns ID, type, title, state, assignee)',
     inputSchema: {
       type: 'object',
       properties: {
         sprintId: {
           type: 'string',
-          description: 'The ID of the sprint',
+          description: 'Sprint ID from get_sprints',
         },
       },
       required: ['sprintId'],
@@ -31,7 +31,7 @@ export const MCP_TOOLS: MCPTool[] = [
   },
   {
     name: 'get_current_sprint_metrics',
-    description: 'Get metrics for the current active sprint including completion rate, velocity, and work hours',
+    description: 'Get current sprint metrics: total items, completed, in progress, completion rate, velocity, work hours',
     inputSchema: {
       type: 'object',
       properties: {},
@@ -67,17 +67,17 @@ export const MCP_TOOLS: MCPTool[] = [
   },
   {
     name: 'update_work_item',
-    description: 'Update an existing work item in Azure DevOps',
+    description: 'Update work item fields (state, title, description, assignedTo, etc.)',
     inputSchema: {
       type: 'object',
       properties: {
         workItemId: {
           type: 'number',
-          description: 'ID of the work item to update',
+          description: 'Work item ID',
         },
         updates: {
           type: 'object',
-          description: 'Fields to update (e.g., {"System.State": "Active", "System.Title": "New title"})',
+          description: 'Fields: System.State, System.Title, System.Description, System.AssignedTo',
         },
       },
       required: ['workItemId', 'updates'],
@@ -99,16 +99,48 @@ export const MCP_TOOLS: MCPTool[] = [
   },
   {
     name: 'analyze_sprint_with_ai',
-    description: 'Analyze current sprint with AI to get impact assessment, recommendations, risk level, and release readiness',
+    description: 'AI analysis of current sprint: impact assessment, recommendations, risk level, release readiness',
     inputSchema: {
       type: 'object',
       properties: {
         context: {
           type: 'string',
-          description: 'Additional context for the AI analysis (optional)',
+          description: 'Optional context for analysis',
         },
       },
       required: [],
+    },
+  },
+  {
+    name: 'get_all_tasks',
+    description: 'Get all tasks from the project (returns id, type, title, state, assignee)',
+    inputSchema: {
+      type: 'object',
+      properties: {},
+      required: [],
+    },
+  },
+  {
+    name: 'get_boards',
+    description: 'List all boards for the project',
+    inputSchema: {
+      type: 'object',
+      properties: {},
+      required: [],
+    },
+  },
+  {
+    name: 'get_board_columns',
+    description: 'Get columns for a board (returns id, name, itemLimit, columnType, stateMappings)',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        boardId: {
+          type: 'string',
+          description: 'Board ID or name from get_boards',
+        },
+      },
+      required: ['boardId'],
     },
   },
 ];
